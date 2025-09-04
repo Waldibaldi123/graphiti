@@ -19,6 +19,10 @@ INPUT_TEXTS = [
     # "I need to text Leila about planning our lunch in Vienna."
 ]
 
+QUERIES = [
+    "With whom do I have a lunch planned?",
+]
+
 
 logfire.configure(
     send_to_logfire='if-token-present',  
@@ -253,6 +257,104 @@ async def extract_edges(input_text: str, entities: list[str], deps: AgentDeps) -
     return r.output
 
 
+SEARCH_AGENT_INSTRUCTIONS = """
+You are a helpful assistant that answers questions about entities and their relationships in a knowledge graph.
+
+Use the semantic_search tool to find relevant entities and relationships based on the user's query, then provide a clear and helpful answer based on the search results.
+"""
+
+
+class EntityResult(BaseModel):
+    entity_name: str
+    entity_labels: list[str]
+    similarity_score: float
+
+
+class EdgeResult(BaseModel):
+    source_name: str
+    target_name: str
+    fact: str
+    similarity_score: float
+
+
+class SearchResults(BaseModel):
+    entities: list[EntityResult]
+    edges: list[EdgeResult]
+
+
+search_agent = Agent(
+    model='gpt-4.1',
+    instructions=SEARCH_AGENT_INSTRUCTIONS,
+    deps_type=AgentDeps,
+)
+
+
+@search_agent.tool
+async def semantic_search(
+    ctx: RunContext[AgentDeps],
+    query: str,
+    limit: int = 10,
+    similarity_threshold: float = 0.7
+) -> SearchResults:
+    """Search for entities and edges using semantic similarity."""
+    driver = ctx.deps.neo4j_driver
+    openai_client = ctx.deps.openai_client
+    query_embedding = await generate_embedding(query, openai_client)
+    entity_records, _, _ = await driver.execute_query(
+        """
+        MATCH (n)
+        WHERE n.name_embedding IS NOT NULL
+        WITH n, vector.similarity.cosine(n.name_embedding, $query_embedding) AS similarity
+        WHERE similarity >= $threshold
+        RETURN n.name AS entity_name, labels(n) AS entity_labels, similarity
+        ORDER BY similarity DESC
+        LIMIT $limit
+        """,
+        query_embedding=query_embedding,
+        threshold=similarity_threshold,
+        limit=limit
+    )
+    edge_records, _, _ = await driver.execute_query(
+        """
+        MATCH (source)-[r:RELATES_TO]->(target)
+        WHERE r.fact_embedding IS NOT NULL
+        WITH source, target, r, vector.similarity.cosine(r.fact_embedding, $query_embedding) AS similarity
+        WHERE similarity >= $threshold
+        RETURN source.name AS source_name, target.name AS target_name, r.fact AS fact, similarity
+        ORDER BY similarity DESC
+        LIMIT $limit
+        """,
+        query_embedding=query_embedding,
+        threshold=similarity_threshold,
+        limit=limit
+    )
+    entities = [
+        EntityResult(
+            entity_name=record['entity_name'],
+            entity_labels=record['entity_labels'],
+            similarity_score=record['similarity']
+        )
+        for record in entity_records
+    ]
+    
+    edges = [
+        EdgeResult(
+            source_name=record['source_name'],
+            target_name=record['target_name'],
+            fact=record['fact'],
+            similarity_score=record['similarity']
+        )
+        for record in edge_records
+    ]
+    return SearchResults(entities=entities, edges=edges)
+
+
+async def search_graph(query: str, deps: AgentDeps) -> str:
+    """Search the graph and get an answer to the query."""
+    response = await search_agent.run(query, deps=deps)
+    return response.output
+
+
 async def clear_graph(driver: AsyncDriver):
     async with driver.session() as session:
         await session.execute_write(
@@ -281,6 +383,14 @@ async def main():
             all_entities = [entity.name for entity in entities_result.entities]
             edges_result = await extract_edges(input_text, all_entities, deps=deps)
             print("Edges:", edges_result)
+
+        print("=" * 50)
+        print("SEARCHING THE GRAPH")
+        print("=" * 50)
+        for query in QUERIES:
+            print(f"Query: {query}")
+            answer = await search_graph(query, deps=deps)
+            print(f"Answer: {answer}")
 
 
 if __name__ == '__main__':
