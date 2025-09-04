@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Union, Literal, Annotated
+from uuid import uuid4
 
 import logfire
 from dotenv import load_dotenv
@@ -15,7 +16,7 @@ load_dotenv()
 
 INPUT_TEXTS = [
     "I need to text TaoTao back about planning our lunch in Vienna.",
-    "I need to text Leila about planning our lunch in Vienna."
+    # "I need to text Leila about planning our lunch in Vienna."
 ]
 
 
@@ -27,9 +28,21 @@ logfire.configure(
 logfire.instrument_pydantic_ai()
 
 
+import openai
+
 @dataclass
 class AgentDeps:
     neo4j_driver: AsyncDriver
+    openai_client: openai.AsyncOpenAI
+
+
+async def generate_embedding(input: str, openai_client: openai.AsyncOpenAI) -> list[float]:
+    """Generate embedding for entity name using OpenAI API."""
+    response = await openai_client.embeddings.create(
+        input=input,
+        model='text-embedding-3-small',
+    )
+    return response.data[0].embedding
 
 
 ENTITY_EXTRACTION_AGENT_INSTRUCTIONS = """
@@ -60,10 +73,29 @@ Instructions:
 """
 
 
+class BaseEntity(BaseModel):
+    uuid: str = Field(default_factory=lambda: str(uuid4()))
+    name: str
+    entity_type: str
+
+
+class Person(BaseEntity):
+    entity_type: Literal["Person"] = "Person"
+
+
+class Location(BaseEntity):
+    entity_type: Literal["Location"] = "Location"
+
+
+class Task(BaseEntity):
+    entity_type: Literal["Task"] = "Task"
+
+
+Entity = Annotated[Union[Person, Location, Task], Field(discriminator='entity_type')]
+
+
 class ExtractedEntities(BaseModel):
-    persons: list[str]
-    locations: list[str]
-    tasks: list[str]
+    entities: list[Entity]
 
 
 entity_extraction_agent = Agent(
@@ -79,22 +111,16 @@ async def add_entities_to_graph(
     ctx: RunContext[AgentDeps],
     entities: ExtractedEntities,
 ) -> None:
-    """Add extracted entities to Neo4j graph."""
+    """Generate embeddings and add entities to Neo4j graph."""
     driver = ctx.deps.neo4j_driver
-    for person in entities.persons:
+    openai_client = ctx.deps.openai_client
+    for entity in entities.entities:
+        name_embedding = await generate_embedding(entity.name, openai_client)
         await driver.execute_query(
-            "MERGE (p:Person {name: $name})",
-            name=person
-        )
-    for location in entities.locations:
-        await driver.execute_query(
-            "MERGE (l:Location {name: $name})",
-            name=location
-        )
-    for task in entities.tasks:
-        await driver.execute_query(
-            "MERGE (t:Task {name: $name})",
-            name=task
+            f"MERGE (e:{entity.entity_type} {{uuid: $uuid, name: $name, name_embedding: $name_embedding}})",
+            uuid=entity.uuid,
+            name=entity.name,
+            name_embedding=name_embedding
         )
 
 
@@ -102,6 +128,44 @@ async def extract_entities(input_text: str, deps: AgentDeps) -> ExtractedEntitie
     r = await entity_extraction_agent.run(input_text, deps=deps)
     return r.output
 
+
+# ENTITY_DEDUPLICATION_AGENT_INSTRUCTIONS = """
+# Given the below EXISTING ENTITIES and their attributes, MESSAGE, and PREVIOUS MESSAGES; Determine if the NEW ENTITY extracted from the conversation
+# is a duplicate entity of one of the EXISTING ENTITIES.
+#
+# Entities should only be considered duplicates if they refer to the *same real-world object or concept*.
+#
+# Do NOT mark entities as duplicates if:
+# - They are related but distinct.
+# - They have similar names or purposes but refer to separate instances or concepts.
+#
+#  TASK:
+#  1. Compare `new_entity` against each item in `existing_entities`.
+#  2. If it refers to the same real‐world object or concept, collect its index.
+#  3. Let `duplicate_idx` = the *first* collected index, or –1 if none.
+#  4. Let `duplicates` = the list of *all* collected indices (empty list if none).
+#
+# Also return the full name of the NEW ENTITY (whether it is the name of the NEW ENTITY, a node it
+# is a duplicate of, or a combination of the two).
+# """
+#
+#
+# entity_deduplication_agent = Agent(
+#     model='gpt-4.1',
+#     output_type=Union[Person, Location, Task],
+#     instructions=ENTITY_DEDUPLICATION_AGENT_INSTRUCTIONS,
+#     deps_type=AgentDeps,
+# )
+#
+#
+# async def dedupe_entities(
+#     extracted_entities: ExtractedEntities,
+#     existing_entities: list[Entity],
+#     deps: AgentDeps
+# ) -> ExtractedEntities:
+#     """Deduplicate extracted entities against existing entities."""
+#     pass
+#
 
 EDGE_EXTRACTION_AGENT_INSTRUCTIONS = """
 <FACT TYPES>
@@ -158,16 +222,20 @@ async def add_edges_to_graph(
 ) -> None:
     """Add extracted edges to Neo4j graph."""
     driver = ctx.deps.neo4j_driver
+    openai_client = ctx.deps.openai_client
     for edge in edges.edges:
+        # TODO: Use entity uuid instead of name for source/target
+        fact_embedding = await generate_embedding(edge.fact, openai_client)
         await driver.execute_query(
             """
             MATCH (source {name: $source_name})
             MATCH (target {name: $target_name})
-            MERGE (source)-[r:RELATES_TO {fact: $fact}]->(target)
+            MERGE (source)-[r:RELATES_TO {fact: $fact, fact_embedding: $fact_embedding}]->(target)
             """,
             source_name=edge.subject,
             target_name=edge.object,
-            fact=edge.fact
+            fact=edge.fact,
+            fact_embedding=fact_embedding,
         )
 
 
@@ -193,18 +261,24 @@ async def clear_graph(driver: AsyncDriver):
 
 
 async def main():
+    openai_client = openai.AsyncOpenAI()
     async with AsyncGraphDatabase.driver(
         uri='bolt://localhost:7687',
         auth=('neo4j', 'password')
     ) as driver:
         await clear_graph(driver)
-        deps = AgentDeps(driver)
+        deps = AgentDeps(driver, openai_client)
 
         for input_text in INPUT_TEXTS:
             print("Input:", input_text)
             entities_result = await extract_entities(input_text, deps=deps)
             print("Entities:", entities_result)
-            all_entities = entities_result.persons + entities_result.locations + entities_result.tasks
+
+            # TODO: per entity, run dedupe agent
+            #       append returned entity to resolved entity
+
+            # TODO: pass in resolved entities
+            all_entities = [entity.name for entity in entities_result.entities]
             edges_result = await extract_edges(input_text, all_entities, deps=deps)
             print("Edges:", edges_result)
 
