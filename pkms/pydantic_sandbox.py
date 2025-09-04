@@ -1,15 +1,14 @@
 import asyncio
 from dataclasses import dataclass
-from typing import Any, Union, Literal, Annotated
+from typing import Union, Literal, Annotated
 from uuid import uuid4
 
 import logfire
+import openai
 from dotenv import load_dotenv
 from neo4j import AsyncGraphDatabase, AsyncDriver
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
-from pydantic_evals import Case, Dataset
-from pydantic_evals.evaluators import EqualsExpected
 
 load_dotenv()
 
@@ -31,8 +30,6 @@ logfire.configure(
 )
 logfire.instrument_pydantic_ai()
 
-
-import openai
 
 @dataclass
 class AgentDeps:
@@ -189,6 +186,7 @@ Only extract facts that:
 - Facts should include entity names rather than pronouns whenever possible.
 - The FACT TYPES each contain their own mapping which represents the subject and object entity types
   the edge is allowed to connect.
+- First person personal pronouns such as "I", "me" or "myself" refer to an entity named "Daniel".
 
 # EXTRACTION RULES
 
@@ -197,7 +195,10 @@ Only extract facts that:
 3. Do not emit duplicate or semantically redundant facts.
 4. The `fact` should quote or closely paraphrase the original source sentence(s).
 5. Only create edges that obey the rules of FACT TYPES.
-6. For edges that involve tasks, make sure to create an edge for each person or Location involved.
+6. For edges that involve tasks, make sure to create an edge for each person or location involved.
+   Especially pay attention to create an edge for "Daniel" if involved.
+7. Do not create edges between persons if the fact is already captured across all the edges that
+   go from a given task.
 """
 
 
@@ -261,6 +262,7 @@ SEARCH_AGENT_INSTRUCTIONS = """
 You are a helpful assistant that answers questions about entities and their relationships in a knowledge graph.
 
 Use the semantic_search tool to find relevant entities and relationships based on the user's query, then provide a clear and helpful answer based on the search results.
+First person personal pronouns such as "I", "me" or "myself" refer to a person named "Daniel".
 """
 
 
@@ -397,22 +399,3 @@ if __name__ == '__main__':
     asyncio.run(main())
 
 
-# Eval logic
-# --------------------------------------------
-# extract_entities_dataset = Dataset[str, ExtractedEntities, Any](
-#     cases=[
-#         Case(
-#             name='meeting_with_location',
-#             inputs='I meet with Felix today in Vienna.',
-#             expected_output=ExtractedEntities(
-#                 persons=['Daniel', 'Felix'],
-#                 locations=['Vienna'],
-#             ),
-#             metadata={'difficulty': 'easy'},
-#         )
-#     ],
-#     evaluators=[EqualsExpected()],
-# )
-#
-# report = extract_entities_dataset.evaluate_sync(extract_entities)
-# print(report)
