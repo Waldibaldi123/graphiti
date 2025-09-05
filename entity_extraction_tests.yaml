@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=entity_extraction_tests_schema.json
+cases:
+- name: remind_dinner
+  inputs: Remind me to plan a dinner with Wolfgang Schneider in Vienna.
+  expected_output:
+    entities:
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: Daniel
+      entity_type: person
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: Wolfgang Schneider
+      entity_type: person
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: Vienna
+      entity_type: location
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: Plan Dinner
+      entity_type: task
+evaluators:
+- ExtractedEntitiesEvaluator

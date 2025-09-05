@@ -5,15 +5,12 @@ import openai
 from dataclasses import dataclass
 from dotenv import load_dotenv
 from neo4j import AsyncGraphDatabase
-from pydantic_evals import Case, Dataset
-from pydantic_evals.evaluators import Evaluator, EvaluatorContext, IsInstance
+from pydantic_evals import Dataset
+from pydantic_evals.evaluators import Evaluator, EvaluatorContext, EvaluationReason
 
 from .common import AgentDeps, clear_graph
 from .entities import (
     ExtractedEntities,
-    LocationEntity,
-    PersonEntity,
-    TaskEntity,
     create_entity_extraction_agent,
     extract_entities,
 )
@@ -29,36 +26,32 @@ logfire.instrument_pydantic_ai()
 
 @dataclass
 class ExtractedEntitiesEvaluator(Evaluator[str, ExtractedEntities]):
-    async def evaluate(self, ctx: EvaluatorContext[str, ExtractedEntities]) -> float:  
-        if ctx.expected_output is None:
-            return 0.0
+    async def evaluate(self, ctx: EvaluatorContext[str, ExtractedEntities]) -> EvaluationReason:  
         score = 1.0
+        reasons = []
         output = {e.name.lower() for e in ctx.output.entities}
-        for expected_identity in ctx.expected_output.entities:
-            if expected_identity.name.lower() not in output:
-                score = score - 0.1
-        score = score - abs(len(ctx.output.entities) - len(ctx.expected_output.entities)) / 10
-        return score
+        expected = {e.name.lower() for e in ctx.expected_output.entities}
+        missing_entities = expected - output
+        for missing_entity in missing_entities:
+            score -= 0.1
+            reasons.append(f'Missing expected entity "{missing_entity}"')
+        additional_entities = output - expected
+        for additional_entity in additional_entities:
+            score -= 0.1
+            reasons.append(f'Unexpected entity "{additional_entity}"')
+        if reasons:
+            reason_text = '\n  '.join(reasons)
+        else:
+            reason_text = ''
+        return EvaluationReason(value=max(0.0, score), reason=reason_text)
 
 
 entity_extraction_agent = create_entity_extraction_agent()
-extract_entities_dataset = Dataset[str, ExtractedEntities, Any](
-    cases=[
-        Case(
-            name='remind_dinner',
-            inputs='Remind me to plan a dinner with Wolfgang Schneider in Vienna.',
-            expected_output=ExtractedEntities(
-                entities=[
-                    PersonEntity(name='Daniel'),
-                    PersonEntity(name='Wolfgang Schneider'),
-                    LocationEntity(name='Vienna'),
-                    TaskEntity(name='Plan Dinner'),
-                ],
-            ),
-        ),
-    ],
-    # evaluators=[IsInstance(type_name='ExtractedEntities'), ExtractedEntitiesEvaluator()],
-    evaluators=[ExtractedEntitiesEvaluator()],
+
+
+extract_entities_dataset = Dataset[str, ExtractedEntities, Any].from_file(
+    'entity_extraction_tests.yaml',
+    custom_evaluator_types=(ExtractedEntitiesEvaluator,)
 )
 
 
@@ -80,5 +73,5 @@ async def _eval_extract_entities(input_text: str) -> ExtractedEntities:
 
 def eval_extract_entities():
     report = extract_entities_dataset.evaluate_sync(_eval_extract_entities)
-    print(report)
+    report.print(include_reasons=True)
 
