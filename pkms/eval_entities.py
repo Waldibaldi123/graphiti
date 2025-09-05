@@ -27,18 +27,17 @@ logfire.configure(
 logfire.instrument_pydantic_ai()
 
 
-# TODO: check if score is correctly calculated
 @dataclass
 class ExtractedEntitiesEvaluator(Evaluator[str, ExtractedEntities]):
     async def evaluate(self, ctx: EvaluatorContext[str, ExtractedEntities]) -> float:  
         if ctx.expected_output is None:
             return 0.0
         score = 1.0
-        output = {e.name for e in ctx.output.entities}
+        output = {e.name.lower() for e in ctx.output.entities}
         for expected_identity in ctx.expected_output.entities:
-            if expected_identity.name not in output:
-                score =- 0.1
-        score =- abs(len(ctx.output.entities) - len(ctx.expected_output.entities))
+            if expected_identity.name.lower() not in output:
+                score = score - 0.1
+        score = score - abs(len(ctx.output.entities) - len(ctx.expected_output.entities)) / 10
         return score
 
 
@@ -58,11 +57,12 @@ extract_entities_dataset = Dataset[str, ExtractedEntities, Any](
             ),
         ),
     ],
-    evaluators=[IsInstance(type_name='ExtractedEntities'), ExtractedEntitiesEvaluator()],
+    # evaluators=[IsInstance(type_name='ExtractedEntities'), ExtractedEntitiesEvaluator()],
+    evaluators=[ExtractedEntitiesEvaluator()],
 )
 
 
-async def eval_extract_entities(input_text: str) -> ExtractedEntities:
+async def _eval_extract_entities(input_text: str) -> ExtractedEntities:
     openai_client = openai.AsyncOpenAI()
     async with AsyncGraphDatabase.driver(
         uri='bolt://localhost:7687',
@@ -77,5 +77,8 @@ async def eval_extract_entities(input_text: str) -> ExtractedEntities:
         )
         return r
 
-report = extract_entities_dataset.evaluate_sync(eval_extract_entities)
-print(report)
+
+def eval_extract_entities():
+    report = extract_entities_dataset.evaluate_sync(_eval_extract_entities)
+    print(report)
+
