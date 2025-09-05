@@ -33,19 +33,16 @@ class CompanyEntity(BaseEntity):
 
 class TaskEntity(BaseEntity):
     """The abstract concept of a task or the need to do something.
-    It's naming should be brief with a maximum of 3 words
-    and should capture the core meaning of the task.
-    We will capture other information like who is evolved in a given task
-    later via edges."""
+    It's naming should be exactly 2 words (VERB NOUN)
+    and should capture the core meaning of the task."""
     entity_type: Literal["task"] = "task"
 
 
 class MeetingEntity(BaseEntity):
     """The abstract concept of a meeting or a get-together.
-    It's naming should be brief with a maximum of 3 words
-    and should capture the core meaning of the task.
-    We will capture other information like who is evolved in a given task
-    later via edges."""
+    It's naming should be exactly 1 word
+    and should capture the core meaning of the meeting. The naming "meeting" itself
+    should only be used if there is no more descriptive meaning inferrable."""
     entity_type: Literal["meeting"] = "meeting"
 
 
@@ -122,11 +119,13 @@ def create_entity_extraction_agent() -> Agent[AgentDeps, ExtractedEntities]:
 async def extract_entities(
     input_text: str, 
     agent: Agent[AgentDeps, ExtractedEntities], 
-    deps: AgentDeps
+    deps: AgentDeps,
+    reference_time: datetime | None = None
 ) -> ExtractedEntities:
     """Extract entities from input text using the provided agent."""
+    ref_time = reference_time or datetime.now()
     formatted_input_text = (
-        f"<REFERENCE TIME>\n{datetime.now()}\n</REFERENCE TIME>\n\n"
+        f"<REFERENCE TIME>\n{ref_time}\n</REFERENCE TIME>\n\n"
         f"<TEXT>\n{input_text}\n</TEXT>"
     )
     r = await agent.run(formatted_input_text, deps=deps)

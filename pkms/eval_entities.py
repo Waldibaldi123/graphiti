@@ -25,8 +25,8 @@ logfire.instrument_pydantic_ai()
 
 
 @dataclass
-class ExtractedEntitiesEvaluator(Evaluator[str, ExtractedEntities]):
-    async def evaluate(self, ctx: EvaluatorContext[str, ExtractedEntities]) -> EvaluationReason:  
+class ExtractedEntitiesEvaluator(Evaluator[dict, ExtractedEntities]):
+    async def evaluate(self, ctx: EvaluatorContext[dict, ExtractedEntities]) -> EvaluationReason:  
         score = 1.0
         reasons = []
         output = {e.name.lower() for e in ctx.output.entities}
@@ -49,13 +49,13 @@ class ExtractedEntitiesEvaluator(Evaluator[str, ExtractedEntities]):
 entity_extraction_agent = create_entity_extraction_agent()
 
 
-extract_entities_dataset = Dataset[str, ExtractedEntities, Any].from_file(
+extract_entities_dataset = Dataset[dict, ExtractedEntities, Any].from_file(
     'entity_extraction_tests.yaml',
     custom_evaluator_types=(ExtractedEntitiesEvaluator,)
 )
 
 
-async def _eval_extract_entities(input_text: str) -> ExtractedEntities:
+async def _eval_extract_entities(inputs: dict) -> ExtractedEntities:
     openai_client = openai.AsyncOpenAI()
     async with AsyncGraphDatabase.driver(
         uri='bolt://localhost:7687',
@@ -64,9 +64,10 @@ async def _eval_extract_entities(input_text: str) -> ExtractedEntities:
         await clear_graph(driver)
         deps = AgentDeps(driver, openai_client)
         r = await extract_entities(
-            input_text=input_text,
+            input_text=inputs['text'],
             agent=entity_extraction_agent,
             deps=deps,
+            reference_time=inputs['reference_time'],
         )
         return r
 

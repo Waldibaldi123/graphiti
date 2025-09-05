@@ -1,7 +1,8 @@
-# yaml-language-server: $schema=entity_extraction_tests_schema.json
 cases:
 - name: remind_dinner
-  inputs: Remind me to plan a dinner with Wolfgang Schneider in Vienna.
+  inputs: 
+    text: Remind me to plan a dinner with Wolfgang Schneider in Vienna.
+    reference_time: '2025-09-01T10:00:00'
   expected_output:
     entities:
     - uuid: 00000000-0000-0000-0000-000000000000
@@ -16,5 +17,23 @@ cases:
     - uuid: 00000000-0000-0000-0000-000000000000
       name: Plan Dinner
       entity_type: task
+- name: create_meeting
+  inputs:
+    text: I have a meeting with Wolfgang Schneider on Thursday in the evening. We're probably gonna grab something to eat.
+    reference_time: '2025-09-01T10:00:00'
+  expected_output:
+    entities:
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: Daniel
+      entity_type: person
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: Wolfgang Schneider
+      entity_type: person
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: '2025-09-04'
+      entity_type: day
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: dinner
+      entity_type: meeting
 evaluators:
 - ExtractedEntitiesEvaluator
