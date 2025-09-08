@@ -1,0 +1,232 @@
+entities:
+  # People
+  - uuid: 00000000-0000-0000-0000-000000000001
+    name: Daniel Walder
+    entity_type: person
+  - uuid: 00000000-0000-0000-0000-000000000002
+    name: Leila Hossein
+    entity_type: person
+  - uuid: 00000000-0000-0000-0000-000000000003
+    name: Marion Walder-Gstrein
+    entity_type: person
+  - uuid: 00000000-0000-0000-0000-000000000004
+    name: Wolfgang Schneider
+    entity_type: person
+  - uuid: 00000000-0000-0000-0000-000000000005
+    name: Scott
+    entity_type: person
+  - uuid: 00000000-0000-0000-0000-000000000006
+    name: Oliver Maurer
+    entity_type: person
+  - uuid: 00000000-0000-0000-0000-000000000007
+    name: Emilia
+    entity_type: person
+
+  # Locations
+  - uuid: 00000000-0000-0000-0000-000000000010
+    name: Vienna
+    entity_type: location
+  - uuid: 00000000-0000-0000-0000-000000000011
+    name: Café Ritter
+    entity_type: location
+  - uuid: 00000000-0000-0000-0000-000000000012
+    name: Meidling
+    entity_type: location
+  - uuid: 00000000-0000-0000-0000-000000000013
+    name: Cambridge
+    entity_type: location
+  - uuid: 00000000-0000-0000-0000-000000000014
+    name: Chicago
+    entity_type: location
+
+  # Companies
+  - uuid: 00000000-0000-0000-0000-000000000020
+    name: Globalstar
+    entity_type: company
+  - uuid: 00000000-0000-0000-0000-000000000021
+    name: Meta
+    entity_type: company
+  - uuid: 00000000-0000-0000-0000-000000000022
+    name: Marker
+    entity_type: company
+
+  # Tasks
+  - uuid: 00000000-0000-0000-0000-000000000030
+    name: Bring Music
+    entity_type: task
+  - uuid: 00000000-0000-0000-0000-000000000031
+    name: Ask Question
+    entity_type: task
+  - uuid: 00000000-0000-0000-0000-000000000032
+    name: Follow Up
+    entity_type: task
+  - uuid: 00000000-0000-0000-0000-000000000033
+    name: Text Back
+    entity_type: task
+  - uuid: 00000000-0000-0000-0000-000000000034
+    name: Book Ticket
+    entity_type: task
+
+  # Meetings
+  - uuid: 00000000-0000-0000-0000-000000000040
+    name: Breakfast
+    entity_type: meeting
+  - uuid: 00000000-0000-0000-0000-000000000041
+    name: Dinner
+    entity_type: meeting
+  - uuid: 00000000-0000-0000-0000-000000000042
+    name: Weekly Standup
+    entity_type: meeting
+  - uuid: 00000000-0000-0000-0000-000000000043
+    name: Board Game Night
+    entity_type: meeting
+
+  # Days
+  - uuid: 00000000-0000-0000-0000-000000000050
+    name: '2025-09-04'
+    entity_type: day
+  - uuid: 00000000-0000-0000-0000-000000000051
+    name: '2025-09-03'
+    entity_type: day
+  - uuid: 00000000-0000-0000-0000-000000000052
+    name: '2025-09-19'
+    entity_type: day
+  - uuid: 00000000-0000-0000-0000-000000000053
+    name: '2025-09-26'
+    entity_type: day
+
+edges:
+  # Person relationships
+  - uuid: 00000000-0000-0000-0000-000000000100
+    subject: Daniel Walder
+    object: Leila Hossein
+    fact: Daniel is meeting with Leila Hossein for breakfast
+    edge_type: relates_to
+  - uuid: 00000000-0000-0000-0000-000000000101
+    subject: Daniel Walder
+    object: Marion Walder-Gstrein
+    fact: Daniel is meeting with Marion Walder-Gstrein for breakfast
+    edge_type: relates_to
+  - uuid: 00000000-0000-0000-0000-000000000102
+    subject: Daniel Walder
+    object: Wolfgang Schneider
+    fact: Daniel had dinner with Wolfgang Schneider
+    edge_type: relates_to
+  - uuid: 00000000-0000-0000-0000-000000000103
+    subject: Daniel Walder
+    object: Scott
+    fact: Daniel has weekly meetings with Scott from Globalstar
+    edge_type: relates_to
+  - uuid: 00000000-0000-0000-0000-000000000104
+    subject: Daniel Walder
+    object: Oliver Maurer
+    fact: Daniel wants to meet with Oliver Maurer to watch movies
+    edge_type: relates_to
+
+  # Location relationships
+  - uuid: 00000000-0000-0000-0000-000000000110
+    subject: Café Ritter
+    object: Vienna
+    fact: Café Ritter is located in Vienna
+    edge_type: relates_to
+  - uuid: 00000000-0000-0000-0000-000000000111
+    subject: Meidling
+    object: Vienna
+    fact: Meidling is a district in Vienna
+    edge_type: relates_to
+
+  # Meeting locations
+  - uuid: 00000000-0000-0000-0000-000000000120
+    subject: Breakfast
+    object: Café Ritter
+    fact: Breakfast meeting is at Café Ritter
+    edge_type: located_at
+  - uuid: 00000000-0000-0000-0000-000000000121
+    subject: Dinner
+    object: Vienna
+    fact: Dinner was somewhere in Vienna
+    edge_type: located_at
+
+  # Meeting attendees
+  - uuid: 00000000-0000-0000-0000-000000000130
+    subject: Daniel Walder
+    object: Breakfast
+    fact: Daniel attends breakfast meeting
+    edge_type: attends
+  - uuid: 00000000-0000-0000-0000-000000000131
+    subject: Leila Hossein
+    object: Breakfast
+    fact: Leila Hossein attends breakfast meeting
+    edge_type: attends
+  - uuid: 00000000-0000-0000-0000-000000000132
+    subject: Marion Walder-Gstrein
+    object: Breakfast
+    fact: Marion Walder-Gstrein attends breakfast meeting
+    edge_type: attends
+  - uuid: 00000000-0000-0000-0000-000000000133
+    subject: Daniel Walder
+    object: Weekly Standup
+    fact: Daniel attends weekly standup with Scott
+    edge_type: attends
+  - uuid: 00000000-0000-0000-0000-000000000134
+    subject: Scott
+    object: Weekly Standup
+    fact: Scott attends weekly standup with Daniel
+    edge_type: attends
+
+  # Work relationships
+  - uuid: 00000000-0000-0000-0000-000000000140
+    subject: Scott
+    object: Globalstar
+    fact: Scott works at Globalstar
+    edge_type: relates_to
+  - uuid: 00000000-0000-0000-0000-000000000141
+    subject: Wolfgang Schneider
+    object: Marker
+    fact: Wolfgang Schneider works at Marker
+    edge_type: relates_to
+
+  # Task relationships
+  - uuid: 00000000-0000-0000-0000-000000000150
+    subject: Bring Music
+    object: Daniel Walder
+    fact: Daniel needs to bring piano sheet music
+    edge_type: relates_to
+  - uuid: 00000000-0000-0000-0000-000000000151
+    subject: Ask Question
+    object: Daniel Walder
+    fact: Daniel should ask Scott about paperwork status
+    edge_type: relates_to
+  - uuid: 00000000-0000-0000-0000-000000000152
+    subject: Follow Up
+    object: Daniel Walder
+    fact: Daniel needs to follow up with Oliver Maurer
+    edge_type: relates_to
+  - uuid: 00000000-0000-0000-0000-000000000153
+    subject: Text Back
+    object: Daniel Walder
+    fact: Daniel should text back about meeting plans
+    edge_type: relates_to
+
+  # Scheduled relationships
+  - uuid: 00000000-0000-0000-0000-000000000160
+    subject: Breakfast
+    object: '2025-09-04'
+    fact: Breakfast meeting is scheduled for September 4th, 2025
+    edge_type: scheduled_for
+  - uuid: 00000000-0000-0000-0000-000000000161
+    subject: Weekly Standup
+    object: '2025-09-03'
+    fact: Weekly standup is on Wednesdays
+    edge_type: scheduled_for
+  - uuid: 00000000-0000-0000-0000-000000000162
+    subject: Board Game Night
+    object: '2025-09-19'
+    fact: Board game night is scheduled for September 19th, 2025
+    edge_type: scheduled_for
+  - uuid: 00000000-0000-0000-0000-000000000163
+    subject: Bring Music
+    object: '2025-09-04'
+    fact: Daniel needs to bring music on September 4th for breakfast meeting
+    edge_type: scheduled_for
+

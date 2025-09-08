@@ -338,7 +338,6 @@ async def semantic_search(
         )
         for record in entity_records
     ]
-    
     edges = [
         EdgeResult(
             source_name=record['source_name'],

@@ -1,0 +1,16 @@
+cases:
+- name: "person_meeting_query"
+  inputs:
+    query: "Who am I meeting with for breakfast?"
+    expected_keywords:
+      - "Leila Hossein"
+      - "Marion Walder-Gstrein" 
+      - "breakfast"
+    expected_entities:
+      - "Leila Hossein"
+      - "Marion Walder-Gstrein"
+      - "Daniel Walder"
+  expected_output: "You are meeting with Leila Hossein and Marion Walder-Gstrein for breakfast at Café Ritter."
+
+evaluators:
+- SearchEvaluator
