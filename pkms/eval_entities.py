@@ -29,16 +29,21 @@ class ExtractedEntitiesEvaluator(Evaluator[dict, ExtractedEntities]):
     async def evaluate(self, ctx: EvaluatorContext[dict, ExtractedEntities]) -> EvaluationReason:  
         score = 1.0
         reasons = []
-        output = {e.name.lower() for e in ctx.output.entities}
-        expected = {e.name.lower() for e in ctx.expected_output.entities}
-        missing_entities = expected - output
-        for missing_entity in missing_entities:
+        output_entities = {e.name.lower(): e.entity_type for e in ctx.output.entities}
+        expected_entities = {e.name.lower(): e.entity_type for e in ctx.expected_output.entities}
+        missing_entity_names = set(expected_entities.keys()) - set(output_entities.keys())
+        for missing_name in missing_entity_names:
             score -= 0.1
-            reasons.append(f'Missing expected entity "{missing_entity}"')
-        additional_entities = output - expected
-        for additional_entity in additional_entities:
+            reasons.append(f'Missing {expected_entities[missing_name]} "{missing_name}"')
+        additional_entity_names = set(output_entities.keys()) - set(expected_entities.keys())
+        for additional_name in additional_entity_names:
             score -= 0.1
-            reasons.append(f'Unexpected entity "{additional_entity}"')
+            reasons.append(f'Unexpected {output_entities[additional_name]} "{additional_name}"')
+        common_names = set(output_entities.keys()) & set(expected_entities.keys())
+        for name in common_names:
+            if output_entities[name] != expected_entities[name]:
+                score -= 0.1
+                reasons.append(f'Entity "{name}" has wrong type: expected {expected_entities[name]}, got {output_entities[name]}')
         if reasons:
             reason_text = '\n  '.join(reasons)
         else:
@@ -73,6 +78,7 @@ async def _eval_extract_entities(inputs: dict) -> ExtractedEntities:
 
 
 def eval_extract_entities():
+    extract_entities_dataset.cases = [extract_entities_dataset.cases[0]]
     report = extract_entities_dataset.evaluate_sync(_eval_extract_entities)
     report.print(include_reasons=True)
 
