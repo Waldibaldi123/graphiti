@@ -1,0 +1,56 @@
+cases:
+- name: "meeting_with_people_and_location"
+  inputs:
+    text: I'm meeting with Leila Hossein and Marion Walder-Gstrein on Thursday morning at Café Ritter, which is a place in Vienna. That will be at 9am. Remind me to bring my piano sheet music with me for Leila to take a look at.
+    reference_time: '2025-09-01T15:09:05'
+    entities:
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: Daniel Walder
+      entity_type: person
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: Leila Hossein
+      entity_type: person
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: Marion Walder-Gstrein
+      entity_type: person
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: Café Ritter
+      entity_type: location
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: Vienna
+      entity_type: location
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: '2025-09-04'
+      entity_type: day
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: Bring Music
+      entity_type: task
+    - uuid: 00000000-0000-0000-0000-000000000000
+      name: Breakfast
+      entity_type: meeting
+  expected_output:
+    edges:
+    - uuid: 00000000-0000-0000-0000-000000000000
+      subject: Daniel Walder
+      object: Leila Hossein
+      edge_type: relates_to
+    - uuid: 00000000-0000-0000-0000-000000000000
+      subject: Daniel Walder
+      object: Marion Walder-Gstrein
+      edge_type: relates_to
+    - uuid: 00000000-0000-0000-0000-000000000000
+      subject: Café Ritter
+      object: Vienna
+      edge_type: relates_to
+    - uuid: 00000000-0000-0000-0000-000000000000
+      subject: Bring Music
+      object: Daniel
+      edge_type: relates_to
+    - uuid: 00000000-0000-0000-0000-000000000000
+      subject: Bring Music
+      object: '2025-09-04'
+      edge_type: scheduled_for
+
+evaluators:
+- ExtractedEdgesEvaluator
+

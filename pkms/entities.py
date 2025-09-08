@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.settings import ModelSettings
 
 from .common import AgentDeps, generate_embedding
 
@@ -17,7 +18,7 @@ class BaseEntity(BaseModel):
 class PersonEntity(BaseEntity):
     """A person or individual mentioned in the text.
     If there are first person personal pronouns such as "I", "me" or "myself",
-    then ALWAYS extract a person with the name "Daniel"."""
+    then ALWAYS extract a person with the name "Daniel Walder"."""
     entity_type: Literal["person"] = "person"
 
 
@@ -87,6 +88,23 @@ class ExtractedEntities(BaseModel):
     entities: list[Entity]
 
 
+async def add_entities_to_graph(
+    entities: ExtractedEntities,
+    deps: AgentDeps,
+) -> None:
+    """Generate embeddings and add entities to Neo4j graph."""
+    driver = deps.neo4j_driver
+    openai_client = deps.openai_client
+    for entity in entities.entities:
+        name_embedding = await generate_embedding(entity.name, openai_client)
+        await driver.execute_query(
+            f"MERGE (e:{entity.entity_type} {{uuid: $uuid, name: $name, name_embedding: $name_embedding}})",
+            uuid=entity.uuid,
+            name=entity.name,
+            name_embedding=name_embedding
+        )
+
+
 def create_entity_extraction_agent() -> Agent[AgentDeps, ExtractedEntities]:
     """Factory function to create entity extraction agent with tools."""
 
@@ -95,24 +113,16 @@ def create_entity_extraction_agent() -> Agent[AgentDeps, ExtractedEntities]:
         output_type=ExtractedEntities,
         instructions=ENTITY_EXTRACTION_AGENT_INSTRUCTIONS,
         deps_type=AgentDeps,
+        model_settings=ModelSettings(temperature=0.0),
     )
 
     @agent.tool
-    async def add_entities_to_graph(
+    async def _add_entities_to_graph(
         ctx: RunContext[AgentDeps],
         entities: ExtractedEntities,
     ) -> None:
         """Generate embeddings and add entities to Neo4j graph."""
-        driver = ctx.deps.neo4j_driver
-        openai_client = ctx.deps.openai_client
-        for entity in entities.entities:
-            name_embedding = await generate_embedding(entity.name, openai_client)
-            await driver.execute_query(
-                f"MERGE (e:{entity.entity_type} {{uuid: $uuid, name: $name, name_embedding: $name_embedding}})",
-                uuid=entity.uuid,
-                name=entity.name,
-                name_embedding=name_embedding
-            )
+        await add_entities_to_graph(entities, ctx.deps)
     return agent
 
 
