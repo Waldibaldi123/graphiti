@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Union, Literal, Annotated
-from uuid import uuid4
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
@@ -11,7 +10,6 @@ from .entities import Entity
 
 
 class BaseEdge(BaseModel):
-    uuid: str = Field(default_factory=lambda: str(uuid4()))
     subject: str
     object: str
     fact: str = ''
@@ -104,11 +102,11 @@ def create_edge_extraction_agent() -> Agent[AgentDeps, ExtractedEdges]:
                 f"""
                 MATCH (source {{name: $source_name}})
                 MATCH (target {{name: $target_name}})
-                MERGE (source)-[r:{edge.edge_type.upper()} {{uuid: $uuid, fact: $fact, fact_embedding: $fact_embedding}}]->(target)
+                MERGE (source)-[r:{edge.edge_type.upper()} {{fact: $fact}}]->(target)
+                SET r.fact_embedding = $fact_embedding
                 """,
                 source_name=edge.subject,
                 target_name=edge.object,
-                uuid=edge.uuid,
                 fact=edge.fact,
                 fact_embedding=fact_embedding,
             )

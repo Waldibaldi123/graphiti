@@ -11,6 +11,7 @@ from pkms.common import AgentDeps
 from pkms.entities import create_entity_extraction_agent, extract_entities
 from pkms.edges import create_edge_extraction_agent, extract_edges
 from pkms.search import create_search_agent, search_graph
+from pkms.episodes import create_episode_with_entities
 
 load_dotenv()
 
@@ -52,9 +53,15 @@ async def modify_graph(query: str) -> str:
         deps,
         reference_time,
     )
+    episode_name = await create_episode_with_entities(
+        query,
+        entities_result.entities,
+        deps,
+        reference_time,
+    )
     entity_names = [entity.name for entity in entities_result.entities]
     edge_descriptions = [f"{edge.subject} -> {edge.object}" for edge in edges_result.edges]
-    return f'Entities: {", ".join(entity_names)}\nEdges: {", ".join(edge_descriptions)}'
+    return f'Episode: {episode_name}\nEntities: {", ".join(entity_names)}\nEdges: {", ".join(edge_descriptions)}'
 
 
 if __name__ == "__main__":

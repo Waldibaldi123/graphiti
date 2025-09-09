@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Union, Literal, Annotated
-from uuid import uuid4
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
@@ -10,7 +9,6 @@ from .common import AgentDeps, generate_embedding
 
 
 class BaseEntity(BaseModel):
-    uuid: str = Field(default_factory=lambda: str(uuid4()))
     name: str
     entity_type: str
 
@@ -98,8 +96,7 @@ async def add_entities_to_graph(
     for entity in entities.entities:
         name_embedding = await generate_embedding(entity.name, openai_client)
         await driver.execute_query(
-            f"MERGE (e:{entity.entity_type} {{uuid: $uuid, name: $name, name_embedding: $name_embedding}})",
-            uuid=entity.uuid,
+            f"MERGE (e:{entity.entity_type} {{name: $name}}) SET e.name_embedding = $name_embedding",
             name=entity.name,
             name_embedding=name_embedding
         )
